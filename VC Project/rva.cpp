@@ -16,10 +16,12 @@
 #include <AR/ar.h>
 
 #include <iostream>
+#include <vector>
 
 using namespace std;
 
 #define MAX_PATTS 2
+#define FLOW_TIME 2.0
 
 /* set up the video format globals */
 
@@ -44,12 +46,29 @@ int             patt_width     = 80.0;
 double          patt_center[2] = {0.0, 0.0};
 double          patt_trans[3][4];
 
+class EffectCoords{
+public:
+	double pattTrans[3][4];
+	double time;
+	void setPattTrans(double[3][4]);
+};
+
+void EffectCoords::setPattTrans(double pt[3][4]){
+	for(unsigned i = 0; i < 3; ++i)
+		for(unsigned j = 0; j < 4; ++j)
+			pattTrans[i][j] = pt[i][j];
+}
+
+vector<EffectCoords> effcoords[MAX_PATTS];
+
 static void   init(void);
 static void   cleanup(void);
 static void   keyEvent( unsigned char key, int x, int y);
 static void   loop(void);
 void   draw( double trans[3][4], unsigned i );
 void   draw2( double trans[3][4], unsigned i );
+
+
 
 int main(int argc, char **argv)
 {
@@ -98,13 +117,13 @@ static void   keyEvent( unsigned char key, int x, int y)
 }
 
 void handleDet(ARMarkerInfo m, int pid){
-	//double glmatrix[16];
 
-		// compute transformation matrix from pattern and convert to OpenGL matrix
-		arGetTransMat(&m, patt_center, patt_width, patt_trans);
-		//argConvGlpara(patt_trans, glmatrix);
+	arGetTransMat(&m, patt_center, patt_width, patt_trans);
+	EffectCoords ef;
+	ef.time =  arUtilTimer();
+	ef.setPattTrans(patt_trans);
+	effcoords[pid].push_back(ef);
 
-		draw(patt_trans, pid);
 }
 
 static void loop(void){
@@ -112,6 +131,7 @@ static void loop(void){
     ARMarkerInfo    *marker_info;
     int              marker_num;
     int              j, i;
+	bool flag;
 
     // try to grab a video frame and if it can't function exits
     if( (dataPtr = (ARUint8 *)arVideoGetImage()) == NULL ) {
@@ -140,6 +160,16 @@ static void loop(void){
 		}
     }
 	
+	for(unsigned k = 0; k < MAX_PATTS; ++k){
+		flag = true;
+		for(unsigned l = 0; (l < effcoords[k].size()) && flag; ++l)
+			if((arUtilTimer() - effcoords[k][l].time) > FLOW_TIME)
+				effcoords[k].erase(effcoords[k].begin() + l);
+			else	
+				draw(effcoords[k][l].pattTrans, k);
+	}
+
+
     argSwapBuffers();
 }
 
