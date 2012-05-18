@@ -66,7 +66,7 @@ static void   cleanup(void);
 static void   keyEvent( unsigned char key, int x, int y);
 static void   loop(void);
 void   draw( double trans[3][4], unsigned i );
-void   draw2( double trans[3][4], unsigned i );
+void   draw2();
 
 
 
@@ -169,7 +169,7 @@ static void loop(void){
 				draw(effcoords[k][l].pattTrans, k);
 	}
 
-
+	draw2();
     argSwapBuffers();
 }
 
@@ -239,15 +239,57 @@ void draw( double trans[3][4], unsigned i )
     glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
     glMatrixMode(GL_MODELVIEW);
     glTranslatef( 0.0, 0.0, 25.0 );
-
+	/*
 	switch(i){
 		case 0 : glutSolidTeapot(50.0); break;
 		case 1 : glutSolidCube(50.0); break;
 		case 2 : glutWireTeapot(50.0); break;
 		case 3 : glutWireCube(50.0); break;
 	}
+	*/
 
+	glutSolidSphere(5.0, 10, 10);
     glDisable( GL_LIGHTING );
 
     glDisable( GL_DEPTH_TEST );
+}
+// supostamente desenha a cena estatica
+// nao consigo acertar com as coords para se ver o teapot
+void draw2()
+{
+    double    gl_para[16];
+    GLfloat   mat_ambient[]     = {1.0, 0.0, 0.0, 1.0};
+    GLfloat   mat_flash[]       = {1.0, 0.0, 0.0, 1.0};
+    GLfloat   mat_flash_shiny[] = {50.0};
+    GLfloat   light_position[]  = {100.0,-200.0,200.0,0.0};
+    GLfloat   ambi[]            = {0.1, 0.1, 0.1, 0.1};
+    GLfloat   lightZeroColor[]  = {0.9, 0.9, 0.9, 0.1};
+    
+  float aspect = 1.0;
+    glClearDepth( 1.0 );
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+   // glDepthFunc(GL_LEQUAL); 
+	glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambi);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightZeroColor);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_flash);
+    glMaterialfv(GL_FRONT, GL_SHININESS, mat_flash_shiny);	
+    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
+    
+    /* load the camera transformation matrix */
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+	gluPerspective(45.0,aspect ,1.0,100);
+	glMatrixMode(GL_MODELVIEW);
+  
+	glPushMatrix();
+	glTranslatef(0.0, 0.0, -10.0);
+	glutSolidTeapot(1.0);
+	glPopMatrix();
+
+    glDisable( GL_DEPTH_TEST );
+    glDisable( GL_LIGHTING );
 }
