@@ -15,6 +15,12 @@
 #include <AR/param.h>
 #include <AR/ar.h>
 
+#include <iostream>
+
+using namespace std;
+
+#define MAX_PATTS 2
+
 /* set up the video format globals */
 
 #ifdef _WIN32
@@ -32,8 +38,8 @@ int             mode = 1;
 char           *cparam_name    = "camera_para.dat";
 ARParam         cparam;
 
-char           *patt_name      = "patt.hiro";
-int             patt_id;
+char           *patt_name[MAX_PATTS];
+int             patt_id[MAX_PATTS];
 int             patt_width     = 80.0;
 double          patt_center[2] = {0.0, 0.0};
 double          patt_trans[3][4];
@@ -41,8 +47,9 @@ double          patt_trans[3][4];
 static void   init(void);
 static void   cleanup(void);
 static void   keyEvent( unsigned char key, int x, int y);
-static void   mainLoop(void);
-static void   draw( double trans[3][4] );
+static void   loop(void);
+void   draw( double trans[3][4], unsigned i );
+void   draw2( double trans[3][4], unsigned i );
 
 int main(int argc, char **argv)
 {
@@ -50,8 +57,25 @@ int main(int argc, char **argv)
     init();
 
     arVideoCapStart();
-    argMainLoop( NULL, keyEvent, mainLoop );
+    argMainLoop( NULL, keyEvent, loop );
 	return (0);
+}
+
+static void initPatts(){
+
+	for(unsigned i = 0; i < MAX_PATTS; ++i){
+		switch(i){
+			case 0 : patt_name[0] = "patt.hiro"; break;
+			case 1 : patt_name[1] = "patt.kanji"; break;
+			case 2 : patt_name[2] = "patt.sample1"; break;
+			case 3 : patt_name[3] = "patt.sample2"; break;
+
+		}
+		if( (patt_id[i]=arLoadPatt(patt_name[i])) < 0 ) {
+			cout << "Error loading " << patt_name[i] << " pattern!" << endl;
+			exit(0);
+		}
+	}
 }
 
 static void   keyEvent( unsigned char key, int x, int y)
@@ -73,59 +97,49 @@ static void   keyEvent( unsigned char key, int x, int y)
     }
 }
 
-/* main loop */
-static void mainLoop(void)
-{
-    static int      contF = 0;
+void handleDet(ARMarkerInfo m, int pid){
+	//double glmatrix[16];
+
+		// compute transformation matrix from pattern and convert to OpenGL matrix
+		arGetTransMat(&m, patt_center, patt_width, patt_trans);
+		//argConvGlpara(patt_trans, glmatrix);
+
+		draw(patt_trans, pid);
+}
+
+static void loop(void){
     ARUint8         *dataPtr;
     ARMarkerInfo    *marker_info;
-    int             marker_num;
-    int             j, k;
+    int              marker_num;
+    int              j, i;
 
-    /* grab a vide frame */
+    // try to grab a video frame and if it can't function exits
     if( (dataPtr = (ARUint8 *)arVideoGetImage()) == NULL ) {
         arUtilSleep(2);
         return;
     }
-    if( count == 0 ) arUtilTimerReset();
-    count++;
 
     argDrawMode2D();
     argDispImage( dataPtr, 0,0 );
 
     /* detect the markers in the video frame */
     if( arDetectMarker(dataPtr, thresh, &marker_info, &marker_num) < 0 ) {
-        cleanup();
+        arVideoCapStop();
+		arVideoClose();
+		argCleanup();
         exit(0);
     }
 
     arVideoCapNext();
 
-    /* check for object visibility */
-    k = -1;
+    // checks if a pattern is visible and sends the information to handleDet
     for( j = 0; j < marker_num; j++ ) {
-        if( patt_id == marker_info[j].id ) {
-            if( k == -1 ) k = j;
-            else if( marker_info[k].cf < marker_info[j].cf ) k = j;
-        }
+		for(i = 0; i < MAX_PATTS; ++i){
+			if(patt_id[i] == marker_info[j].id)
+				handleDet(marker_info[j], i);
+		}
     }
-    if( k == -1 ) {
-        contF = 0;
-        argSwapBuffers();
-        return;
-    }
-
-    /* get the transformation between the marker and the real camera */
-    if( mode == 0 || contF == 0 ) {
-        arGetTransMat(&marker_info[k], patt_center, patt_width, patt_trans);
-    }
-    else {
-        arGetTransMatCont(&marker_info[k], patt_trans, patt_center, patt_width, patt_trans);
-    }
-    contF = 1;
-
-    draw( patt_trans );
-
+	
     argSwapBuffers();
 }
 
@@ -149,10 +163,7 @@ static void init( void )
     printf("*** Camera Parameter ***\n");
     arParamDisp( &cparam );
 
-    if( (patt_id=arLoadPatt(patt_name)) < 0 ) {
-        printf("pattern load error !!\n");
-        exit(0);
-    }
+	initPatts();
 
     /* open the graphics window */
     argInit( &cparam, 1.0, 0, 0, 0, 0 );
@@ -166,7 +177,7 @@ static void cleanup(void)
     argCleanup();
 }
 
-static void draw( double trans[3][4] )
+void draw( double trans[3][4], unsigned i )
 {
     double    gl_para[16];
     GLfloat   mat_ambient[]     = {0.0, 0.0, 1.0, 1.0};
@@ -198,7 +209,14 @@ static void draw( double trans[3][4] )
     glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
     glMatrixMode(GL_MODELVIEW);
     glTranslatef( 0.0, 0.0, 25.0 );
-    glutSolidCube(50.0);
+
+	switch(i){
+		case 0 : glutSolidTeapot(50.0); break;
+		case 1 : glutSolidCube(50.0); break;
+		case 2 : glutWireTeapot(50.0); break;
+		case 3 : glutWireCube(50.0); break;
+	}
+
     glDisable( GL_LIGHTING );
 
     glDisable( GL_DEPTH_TEST );
