@@ -45,6 +45,7 @@ int             patt_id[MAX_PATTS];
 int             patt_width     = 80.0;
 double          patt_center[2] = {0.0, 0.0};
 double          patt_trans[3][4];
+float mat_pot[16];
 
 class EffectCoords{
 public:
@@ -160,6 +161,7 @@ static void loop(void){
 		}
     }
 	
+	draw2();
 	for(unsigned k = 0; k < MAX_PATTS; ++k){
 		flag = true;
 		for(unsigned l = 0; (l < effcoords[k].size()) && flag; ++l)
@@ -169,7 +171,6 @@ static void loop(void){
 				draw(effcoords[k][l].pattTrans, k);
 	}
 
-	draw2();
     argSwapBuffers();
 }
 
@@ -249,7 +250,16 @@ void draw( double trans[3][4], unsigned i )
 	*/
 
 	glutSolidSphere(5.0, 10, 10);
-    glDisable( GL_LIGHTING );
+	
+	//cout << "(" << trans[0][3] << ", " << trans[1][3] << ", " << trans[2][3] << ")" << endl;
+
+	float aux = sqrt(trans[0][3]*trans[0][3] + trans[1][3]*trans[1][3]);
+
+	if(aux < 10.0){
+		cout << "JA FOSTE" << endl;
+		Sleep(5000);
+	}
+	glDisable( GL_LIGHTING );
 
     glDisable( GL_DEPTH_TEST );
 }
@@ -283,12 +293,12 @@ void draw2()
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 	gluPerspective(45.0,aspect ,1.0,100);
-	glMatrixMode(GL_MODELVIEW);
+	//glMatrixMode(GL_MODELVIEW);
   
-	glPushMatrix();
+	//glPushMatrix();
 	glTranslatef(0.0, 0.0, -10.0);
-	glutSolidTeapot(1.0);
-	glPopMatrix();
+	glutSolidTeapot(0.5);
+	//glPopMatrix();
 
     glDisable( GL_DEPTH_TEST );
     glDisable( GL_LIGHTING );
