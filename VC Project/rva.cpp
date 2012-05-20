@@ -22,6 +22,8 @@ using namespace std;
 
 #define MAX_PATTS 2
 #define FLOW_TIME 2.0
+#define MAX_OBJS  1
+#define THRESHOLD 10.0
 
 /* set up the video format globals */
 
@@ -45,7 +47,7 @@ int             patt_id[MAX_PATTS];
 int             patt_width     = 80.0;
 double          patt_center[2] = {0.0, 0.0};
 double          patt_trans[3][4];
-float mat_pot[16];
+float			obj_pos[MAX_OBJS][2];
 
 class EffectCoords{
 public:
@@ -174,6 +176,11 @@ static void loop(void){
     argSwapBuffers();
 }
 
+static void initObjs(void){
+	obj_pos[0][0] = 0.0;
+	obj_pos[0][1] = 0.0;
+}
+
 static void init( void )
 {
     ARParam  wparam;
@@ -195,6 +202,7 @@ static void init( void )
     arParamDisp( &cparam );
 
 	initPatts();
+	initObjs();
 
     /* open the graphics window */
     argInit( &cparam, 1.0, 0, 0, 0, 0 );
@@ -211,8 +219,8 @@ static void cleanup(void)
 void draw( double trans[3][4], unsigned i )
 {
     double    gl_para[16];
-    GLfloat   mat_ambient[]     = {0.0, 0.0, 1.0, 1.0};
-    GLfloat   mat_flash[]       = {0.0, 0.0, 1.0, 1.0};
+    GLfloat   mat_ambient[]     = {0.0, 0.0, 0.0, 1.0};
+    GLfloat   mat_flash[]       = {0.0, 0.0, 0.0, 1.0};
     GLfloat   mat_flash_shiny[] = {50.0};
     GLfloat   light_position[]  = {100.0,-200.0,200.0,0.0};
     GLfloat   ambi[]            = {0.1, 0.1, 0.1, 0.1};
@@ -240,24 +248,31 @@ void draw( double trans[3][4], unsigned i )
     glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
     glMatrixMode(GL_MODELVIEW);
     glTranslatef( 0.0, 0.0, 25.0 );
-	/*
+	
 	switch(i){
-		case 0 : glutSolidTeapot(50.0); break;
-		case 1 : glutSolidCube(50.0); break;
-		case 2 : glutWireTeapot(50.0); break;
-		case 3 : glutWireCube(50.0); break;
+		case 0 : mat_ambient[2] = 1.0;
+				 mat_flash[2]   = 1.0;
+				 break;
+		case 1 : mat_ambient[1] = 1.0;
+				 mat_flash[1]   = 1.0;
+				 break;
+		case 2 : mat_ambient[0] = 1.0;
+				 mat_flash[0]   = 1.0;
+				 break;
+		case 3 : mat_ambient[0] = 0.2;
+				 mat_flash[0]   = 0.2;
+				 break;
 	}
-	*/
 
 	glutSolidSphere(5.0, 10, 10);
-	
-	//cout << "(" << trans[0][3] << ", " << trans[1][3] << ", " << trans[2][3] << ")" << endl;
 
-	float aux = sqrt(trans[0][3]*trans[0][3] + trans[1][3]*trans[1][3]);
+	float aux = sqrt(trans[0][3]*trans[0][3] + trans[1][3]*trans[1][3]) -
+				sqrt(obj_pos[0][0]*obj_pos[0][0] + obj_pos[0][1]*obj_pos[0][1]);
 
-	if(aux < 10.0){
+	if(aux < THRESHOLD){
 		cout << "JA FOSTE" << endl;
-		Sleep(5000);
+		Sleep(3000);
+		exit(0);
 	}
 	glDisable( GL_LIGHTING );
 
@@ -295,10 +310,10 @@ void draw2()
 	gluPerspective(45.0,aspect ,1.0,100);
 	//glMatrixMode(GL_MODELVIEW);
   
-	//glPushMatrix();
-	glTranslatef(0.0, 0.0, -10.0);
+	glPushMatrix();
+	glTranslatef(obj_pos[0][0], obj_pos[0][1], -10.0);
 	glutSolidTeapot(0.5);
-	//glPopMatrix();
+	glPopMatrix();
 
     glDisable( GL_DEPTH_TEST );
     glDisable( GL_LIGHTING );
