@@ -1,76 +1,10 @@
-#ifdef _WIN32
-#include <windows.h>
-#endif
-#include <stdio.h>
-#include <stdlib.h>
-#ifndef __APPLE__
-#include <GL/gl.h>
-#include <GL/glut.h>
-#else
-#include <OpenGL/gl.h>
-#include <GLUT/glut.h>
-#endif
-#include <AR/gsub.h>
-#include <AR/video.h>
-#include <AR/param.h>
-#include <AR/ar.h>
-
-#include <iostream>
-#include <vector>
-
-using namespace std;
-
-#define MAX_PATTS 2
-#define FLOW_TIME 2.0
-#define MAX_OBJS  1
-#define THRESHOLD 10.0
-
-/* set up the video format globals */
-
-#ifdef _WIN32
-char			*vconf = "WDM_camera_flipV.xml";
-#else
-char			*vconf = "";
-#endif
-
-int             xsize, ysize;
-int             thresh = 100;
-int             count = 0;
-
-int             mode = 1;
-
-char           *cparam_name    = "camera_para.dat";
-ARParam         cparam;
-
-char           *patt_name[MAX_PATTS];
-int             patt_id[MAX_PATTS];
-int             patt_width     = 80.0;
-double          patt_center[2] = {0.0, 0.0};
-double          patt_trans[3][4];
-float			obj_pos[MAX_OBJS][2];
-
-class EffectCoords{
-public:
-	double pattTrans[3][4];
-	double time;
-	void setPattTrans(double[3][4]);
-};
+# include "rva.h"
 
 void EffectCoords::setPattTrans(double pt[3][4]){
 	for(unsigned i = 0; i < 3; ++i)
 		for(unsigned j = 0; j < 4; ++j)
 			pattTrans[i][j] = pt[i][j];
 }
-
-vector<EffectCoords> effcoords[MAX_PATTS];
-
-static void   init(void);
-static void   cleanup(void);
-static void   keyEvent( unsigned char key, int x, int y);
-static void   loop(void);
-void   draw( double trans[3][4], unsigned i );
-void   draw2();
-
 
 
 int main(int argc, char **argv)
@@ -83,7 +17,8 @@ int main(int argc, char **argv)
 	return (0);
 }
 
-static void initPatts(){
+// Loads the patterns to be recognized
+static void initPatts(void){
 
 	for(unsigned i = 0; i < MAX_PATTS; ++i){
 		switch(i){
@@ -100,43 +35,64 @@ static void initPatts(){
 	}
 }
 
-static void   keyEvent( unsigned char key, int x, int y)
-{
+// Handles key pressing...
+static void keyEvent( unsigned char key, int x, int y){
     /* quit if the ESC key is pressed */
     if( key == 0x1b ) {
         printf("*** %f (frame/sec)\n", (double)count/arUtilTimer());
         cleanup();
         exit(0);
     }
-
-    if( key == 'c' ) {
-        printf("*** %f (frame/sec)\n", (double)count/arUtilTimer());
-        count = 0;
-
-        mode = 1 - mode;
-        if( mode ) printf("Continuous mode: Using arGetTransMatCont.\n");
-         else      printf("One shot mode: Using arGetTransMat.\n");
-    }
 }
 
-void handleDet(ARMarkerInfo m, int pid){
-
+// Handle marker detection
+static void handleDet(ARMarkerInfo m, int pid){
+	// Adds the position to the marker trail vector
 	arGetTransMat(&m, patt_center, patt_width, patt_trans);
 	EffectCoords ef;
+	// Adds time of the position to later check if it's older
+	// than the defined trail length
 	ef.time =  arUtilTimer();
 	ef.setPattTrans(patt_trans);
 	effcoords[pid].push_back(ef);
 
 }
 
+// Handle the teapot and marker collisions
+static void handle_objs(double trans[3][4]){
+	for(unsigned j = 0; j < MAX_OBJS; ++j){
+		// Transform the teapots coords from model view to the camera coords
+		float x = CAMSIZE_X * obj_pos[j][0] / SCENESIZE_X;
+		// y nos objs ta invertido nao sei porque... (sistemas de coordenadas?)
+		float y = - CAMSIZE_Y * obj_pos[j][1] / SCENESIZE_Y;
+		float xx = trans[0][3] - x;
+		float yy = trans[1][3] - y;
+
+		// Distance between points, by measuring the magnitude of the vector between them
+		float aux = sqrt(xx*xx + yy*yy);
+		
+		// If the pattern intersects a teapot
+		if(abs(aux) < THRESHOLD){
+			obj_draw[j] = false;
+			// If all teapots were intersected game over!
+			if(!obj_draw[0] && !obj_draw[1] && !obj_draw[2] && !obj_draw[3]){
+				cout << "YOU WON!" << endl;
+				Sleep(5000);
+				cleanup();
+				exit(0);
+			}
+		}
+	}
+}
+
+// Loop called every frame
 static void loop(void){
     ARUint8         *dataPtr;
     ARMarkerInfo    *marker_info;
     int              marker_num;
     int              j, i;
-	bool flag;
 
-    // try to grab a video frame and if it can't function exits
+    // Try to grab a video frame and if it can't function exits
     if( (dataPtr = (ARUint8 *)arVideoGetImage()) == NULL ) {
         arUtilSleep(2);
         return;
@@ -145,17 +101,15 @@ static void loop(void){
     argDrawMode2D();
     argDispImage( dataPtr, 0,0 );
 
-    /* detect the markers in the video frame */
+    // Detect the markers in the video frame 
     if( arDetectMarker(dataPtr, thresh, &marker_info, &marker_num) < 0 ) {
-        arVideoCapStop();
-		arVideoClose();
-		argCleanup();
+        cleanup();
         exit(0);
     }
 
     arVideoCapNext();
 
-    // checks if a pattern is visible and sends the information to handleDet
+    // Checks if a pattern is visible and sends the information to handleDet
     for( j = 0; j < marker_num; j++ ) {
 		for(i = 0; i < MAX_PATTS; ++i){
 			if(patt_id[i] == marker_info[j].id)
@@ -163,26 +117,45 @@ static void loop(void){
 		}
     }
 	
-	draw2();
+	// Draw the teapots
+	draw_objs();
+
+	// Draws the 2 seconds trail of the markers
 	for(unsigned k = 0; k < MAX_PATTS; ++k){
-		flag = true;
-		for(unsigned l = 0; (l < effcoords[k].size()) && flag; ++l)
+		for(unsigned l = 0; l < effcoords[k].size(); ++l){
+			// Removes spheres older than 2 seconds
 			if((arUtilTimer() - effcoords[k][l].time) > FLOW_TIME)
 				effcoords[k].erase(effcoords[k].begin() + l);
-			else	
+			else{	
+				// Handles teapots colisions and draws the trail
+				handle_objs(effcoords[k][l].pattTrans);
 				draw(effcoords[k][l].pattTrans, k);
+			}
+		}
 	}
 
     argSwapBuffers();
 }
 
+// Initializes the start positions of the teapots
 static void initObjs(void){
-	obj_pos[0][0] = 0.0;
-	obj_pos[0][1] = 0.0;
+	obj_pos[0][0] = -2.3;
+	obj_pos[0][1] = 3.0;
+	
+	obj_pos[1][0] = 3.0;
+	obj_pos[1][1] = 2.3;
+	
+	obj_pos[2][0] = -3.0;
+	obj_pos[2][1] = -2.3;
+	
+	obj_pos[3][0] = 2.3;
+	obj_pos[3][1] = -3.0;
+
+	for(unsigned i = 0; i < MAX_OBJS; ++i)
+		obj_draw[i] = true;
 }
 
-static void init( void )
-{
+static void init(void){
     ARParam  wparam;
 
     /* open the video path */
@@ -201,6 +174,7 @@ static void init( void )
     printf("*** Camera Parameter ***\n");
     arParamDisp( &cparam );
 
+	// Initializes the patterns and teapots
 	initPatts();
 	initObjs();
 
@@ -216,8 +190,9 @@ static void cleanup(void)
     argCleanup();
 }
 
-void draw( double trans[3][4], unsigned i )
-{
+// Draws a sphere in the position trans, based on the pattern index i
+static void draw( double trans[3][4], unsigned i ){
+
     double    gl_para[16];
     GLfloat   mat_ambient[]     = {0.0, 0.0, 0.0, 1.0};
     GLfloat   mat_flash[]       = {0.0, 0.0, 0.0, 1.0};
@@ -226,29 +201,7 @@ void draw( double trans[3][4], unsigned i )
     GLfloat   ambi[]            = {0.1, 0.1, 0.1, 0.1};
     GLfloat   lightZeroColor[]  = {0.9, 0.9, 0.9, 0.1};
     
-    argDrawMode3D();
-    argDraw3dCamera( 0, 0 );
-    glClearDepth( 1.0 );
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-    
-    /* load the camera transformation matrix */
-    argConvGlpara(trans, gl_para);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadMatrixd( gl_para );
-
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, ambi);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightZeroColor);
-    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_flash);
-    glMaterialfv(GL_FRONT, GL_SHININESS, mat_flash_shiny);	
-    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
-    glMatrixMode(GL_MODELVIEW);
-    glTranslatef( 0.0, 0.0, 25.0 );
-	
+	// Choses the trail color for each marker
 	switch(i){
 		case 0 : mat_ambient[2] = 1.0;
 				 mat_flash[2]   = 1.0;
@@ -264,25 +217,40 @@ void draw( double trans[3][4], unsigned i )
 				 break;
 	}
 
+    argDrawMode3D();
+    argDraw3dCamera( 0, 0 );
+    glClearDepth( 1.0 );
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    
+    /* load the camera transformation matrix */
+    argConvGlpara(trans, gl_para);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadMatrixd( gl_para );
+
+	// Lighting and color settings...
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambi);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightZeroColor);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_flash);
+    glMaterialfv(GL_FRONT, GL_SHININESS, mat_flash_shiny);	
+    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
+
+    glMatrixMode(GL_MODELVIEW);
+    glTranslatef( 0.0, 0.0, 25.0 );
+
 	glutSolidSphere(5.0, 10, 10);
 
-	float aux = sqrt(trans[0][3]*trans[0][3] + trans[1][3]*trans[1][3]) -
-				sqrt(obj_pos[0][0]*obj_pos[0][0] + obj_pos[0][1]*obj_pos[0][1]);
-
-	if(aux < THRESHOLD){
-		cout << "JA FOSTE" << endl;
-		Sleep(3000);
-		exit(0);
-	}
 	glDisable( GL_LIGHTING );
-
     glDisable( GL_DEPTH_TEST );
 }
-// supostamente desenha a cena estatica
-// nao consigo acertar com as coords para se ver o teapot
-void draw2()
-{
-    double    gl_para[16];
+
+// Draws the teapots
+static void draw_objs(void){
+
     GLfloat   mat_ambient[]     = {1.0, 0.0, 0.0, 1.0};
     GLfloat   mat_flash[]       = {1.0, 0.0, 0.0, 1.0};
     GLfloat   mat_flash_shiny[] = {50.0};
@@ -290,11 +258,12 @@ void draw2()
     GLfloat   ambi[]            = {0.1, 0.1, 0.1, 0.1};
     GLfloat   lightZeroColor[]  = {0.9, 0.9, 0.9, 0.1};
     
-  float aspect = 1.0;
+	float aspect = xsize / ysize;
+
     glClearDepth( 1.0 );
     glClear(GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-   // glDepthFunc(GL_LEQUAL); 
+    glDepthFunc(GL_LEQUAL); 
 	glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glLightfv(GL_LIGHT0, GL_POSITION, light_position);
@@ -304,16 +273,39 @@ void draw2()
     glMaterialfv(GL_FRONT, GL_SHININESS, mat_flash_shiny);	
     glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
     
-    /* load the camera transformation matrix */
+    // Draws on the projection space
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-	gluPerspective(45.0,aspect ,1.0,100);
-	//glMatrixMode(GL_MODELVIEW);
+	gluPerspective(45.0, aspect, 1.0, 100);
   
-	glPushMatrix();
-	glTranslatef(obj_pos[0][0], obj_pos[0][1], -10.0);
-	glutSolidTeapot(0.5);
-	glPopMatrix();
+	// 4000 milisecond movement...
+	int x = (int)(clock()/(CLOCKS_PER_SEC/1e3)) % (int)4000;
+
+	for(unsigned i = 0; i < MAX_OBJS; ++i){
+		if(obj_draw[i]){
+			// Calculates the movement of the teapots on the screen
+			switch(i){
+				case 0: (x < 2000) ? obj_pos[i][0] -= 0.14 : obj_pos[i][0] += 0.14;
+						break;
+				case 1: (x < 2000) ? obj_pos[i][1] += 0.14 : obj_pos[i][1] -= 0.14;
+						break;
+				case 2: (x < 2000) ? obj_pos[i][1] -= 0.14 : obj_pos[i][1] += 0.14;
+						break;
+				case 3: (x < 2000) ? obj_pos[i][0] += 0.14 : obj_pos[i][0] -= 0.14;
+						break;
+			}
+
+			glPushMatrix();
+			glTranslatef(obj_pos[i][0], obj_pos[i][1], -10.0);
+
+			// Rotation of the teapots to give a nicer look!
+			glRotatef((float)clock()/(CLOCKS_PER_SEC/1e2), abs(cos((float)clock()/(CLOCKS_PER_SEC/1e2))), 
+				abs(cos((float)clock()/(CLOCKS_PER_SEC/1e2))), 0);
+
+			glutSolidTeapot(0.5);
+			glPopMatrix();
+		}
+	}
 
     glDisable( GL_DEPTH_TEST );
     glDisable( GL_LIGHTING );
