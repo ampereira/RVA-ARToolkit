@@ -19,6 +19,8 @@
 #include <vector>
 #include <ctime>
 
+#include "glm.h"
+
 #define MAX_PATTS 2
 #define FLOW_TIME 2.0
 #define MAX_OBJS  4
@@ -46,7 +48,8 @@ using namespace std;
 
 // Camera configuration file
 #ifdef _WIN32
-char			*vconf = "WDM_camera_flipV.xml";
+//char			vconf[] = "WDM_camera_flipV.xml";
+char			*vconf = NULL;
 #else
 char			*vconf = "";
 #endif
@@ -66,6 +69,22 @@ double   patt_trans[3][4];
 // Teapots position and draw flag
 float	 obj_pos[MAX_OBJS][2];
 bool	 obj_draw[MAX_OBJS];
+
+// Object colors 
+#define EMBALAGEM		0
+#define PAPEL_CARTAO	1
+#define VIDRO			2
+#define INDIFERENCIADO	3
+#define PILHAO			4
+
+char patt_color[MAX_PATTS];
+char obj_color[MAX_OBJS];
+GLMmodel * obj_model[MAX_OBJS];
+
+// To control score
+#define UP				500
+#define DOWN			100
+int score = 0;
 
 // Class of each trail effect position
 class EffectCoords{

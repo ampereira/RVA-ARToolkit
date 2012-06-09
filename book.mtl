@@ -1,0 +1,35 @@
+# Blender3D MTL File: book.blend
+# Material Count: 3
+newmtl binding_binding_diffuse.tga
+Ns 9.803922
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.152736 0.152736 0.152736
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd binding_diffuse.tga
+
+
+newmtl cover_cover_diffuse.tga
+Ns 23.529412
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.029370 0.029370 0.029370
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd cover_diffuse.tga
+
+
+newmtl pages_pages_diffuse.tga
+Ns 23.529412
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.125738 0.125738 0.125738
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd pages_diffuse.tga
+
+
