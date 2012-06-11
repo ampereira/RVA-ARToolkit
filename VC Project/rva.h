@@ -84,6 +84,13 @@ char patt_color[MAX_PATTS];
 char obj_color[MAX_OBJS];
 GLMmodel * obj_model[MAX_OBJS];
 
+double ang[MAX_OBJS] = {
+				(((float)rand())/RAND_MAX)*2*PI,
+				(((float)rand())/RAND_MAX)*2*PI,
+				(((float)rand())/RAND_MAX)*2*PI,
+				(((float)rand())/RAND_MAX)*2*PI
+			};
+
 // To control score
 #define UP				500
 #define DOWN			100

@@ -56,6 +56,14 @@ static void keyEvent( unsigned char key, int x, int y){
         cleanup();
         exit(0);
     }
+	if( key == 'r' || key == 'R')	{ //Rewind
+		for(int i=0 ; i<MAX_OBJS ; ++i)	{
+			obj_draw[i] =true;
+			obj_pos[i][0] = 0;
+			obj_pos[i][1] = 0;
+			ang[i] = (((float)rand())/RAND_MAX)*2*PI;
+		}
+	}
 }
 
 // Handle marker detection
@@ -353,12 +361,6 @@ static void draw_objs(void){
 
 			// angulo direcao
 			double STEP = 0.1;
-			static double ang[MAX_OBJS] = {
-				(((float)rand())/RAND_MAX)*2*PI,
-				(((float)rand())/RAND_MAX)*2*PI,
-				(((float)rand())/RAND_MAX)*2*PI,
-				(((float)rand())/RAND_MAX)*2*PI
-			};
 
 			// update position
 			obj_pos[i][0] += STEP * sin(ang[i]);
