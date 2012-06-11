@@ -450,7 +450,7 @@ static void draw_objs(void){
 				//	cout << "INDIFERENCIADO" << endl;
 				//}
 				if(obj_color[i]!=VIDRO)	{
-					glmDraw(obj_model[i],GLM_SMOOTH|GLM_MATERIAL|GLM_TEXTURE);
+					glmDraw(obj_model[i],GLM_SMOOTH|GLM_TEXTURE);
 				} else
 					glutSolidTeapot(0.5);
 			}
