@@ -52,7 +52,7 @@ static void keyEvent( unsigned char key, int x, int y){
     /* quit if the ESC key is pressed */
     if( key == 0x1b ) {
         printf("*** %f (frame/sec)\n", (double)count/arUtilTimer());
-		Sleep(5000);
+		Sleep(500);
         cleanup();
         exit(0);
     }
@@ -164,8 +164,8 @@ static void loop(void){
 	draw_objs();
 
 	// Draws the 2 seconds trail of the markers
-	for(unsigned k = 0; k < MAX_PATTS; ++k){
-		for(unsigned l = 0; l < effcoords[k].size(); ++l){
+	for(unsigned k = 0; k < MAX_PATTS; ++k)	{
+		for(unsigned l = 0; l < effcoords[k].size(); ++l)	{
 			// Removes spheres older than 2 seconds
 			if((arUtilTimer() - effcoords[k][l].time) > FLOW_TIME)
 				effcoords[k].erase(effcoords[k].begin() + l);
@@ -207,15 +207,15 @@ static void initObjs(void){
 				sprintf(file,"book.obj");
 				break;
 			case VIDRO:
-				sprintf(file,"neuro_bottle_obj.obj");
+				sprintf(file,"cups.obj");
 				break;
 			case INDIFERENCIADO:
 				sprintf(file,"indiferenciado.obj");
 				break;
 		}
 		
-		//if(obj_color[i]==VIDRO)
-			//continue;
+		if(obj_color[i]==INDIFERENCIADO ) //||obj_color[i]==VIDRO
+			continue;
 
 		sprintf(buffer,"C:\/cygwin\/home\/Rafael\/CG\/RVA\/ARToolkit\/%s",file);
 		obj_model[i]	= glmReadOBJ(buffer);
@@ -331,6 +331,8 @@ static void draw_objs(void){
     glClear(GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL); 
+
+
 	glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glLightfv(GL_LIGHT0, GL_POSITION, light_position);
@@ -347,31 +349,50 @@ static void draw_objs(void){
 
 	for(unsigned i = 0; i < MAX_OBJS; ++i){
 		if(obj_draw[i]){
-			// Calculates the movement of the teapots on the screen
-			switch(i){
-				case 0: (x < 2000) ? obj_pos[i][0] -= 0.14 : obj_pos[i][0] += 0.14;
-						break;
-				case 1: (x < 2000) ? obj_pos[i][1] += 0.14 : obj_pos[i][1] -= 0.14;
-						break;
-				case 2: (x < 2000) ? obj_pos[i][1] -= 0.14 : obj_pos[i][1] += 0.14;
-						break;
-				case 3: (x < 2000) ? obj_pos[i][0] += 0.14 : obj_pos[i][0] -= 0.14;
-						break;
+			// update obj position
+
+			// angulo direcao
+			double STEP = 0.1;
+			static double ang[MAX_OBJS] = {
+				(((float)rand())/RAND_MAX)*2*PI,
+				(((float)rand())/RAND_MAX)*2*PI,
+				(((float)rand())/RAND_MAX)*2*PI,
+				(((float)rand())/RAND_MAX)*2*PI
+			};
+
+			// update position
+			obj_pos[i][0] += STEP * sin(ang[i]);
+			obj_pos[i][1] += STEP * cos(ang[i]);
+
+			// handle colisions with the wall's
+			if(obj_pos[i][0]>=3)
+				ang[i] = (((float)rand())/RAND_MAX)*PI+PI/2;
+			if(obj_pos[i][1]>=3)
+				ang[i] = (((float)rand())/RAND_MAX)*PI+PI;
+			if(obj_pos[i][0]<=-3)
+				ang[i] = (((float)rand())/RAND_MAX)*PI-PI/2; 
+			if(obj_pos[i][1]<=-3)
+				ang[i] = (((float)rand())/RAND_MAX)*PI;
+			//if(obj_pos[i][0]>=3 || obj_pos[i][1]>=3 || obj_pos[i][0]<=-3 || obj_pos[i][1]<=-3) // failed atempt do redirect to the center
+				//ang[i] = atan(obj_pos[i][1]/obj_pos[i][0]);//+((((float)rand())/RAND_MAX)-0.5)*(PI/3);
+			
+			// Se sair da zona do ecra o obj e teleportado para o centro
+			if(	(obj_pos[i][0]>=3	&& obj_pos[i][1]>=3) || //Canto superior direiro
+				(obj_pos[i][0]<=-3	&& obj_pos[i][1]>=3) || //Canto superior esquerdo
+				(obj_pos[i][0]>=3	&& obj_pos[i][1]<=-3) || //Canto inferior direiro
+				(obj_pos[i][0]<=-3	&& obj_pos[i][1]<=-3))	{ //Canto inferior esquerdo
+					obj_pos[i][0]=0;
+					obj_pos[i][1]=0;
 			}
+
+			if(obj_color[i]==EMBALAGEM) // for debug
+				cout << "obj[i].XX = " << obj_pos[i][0] << "\t |\tobj[i].YY = " << obj_pos[i][1] << endl;
 
 			GLfloat   mat_ambient[]     = {0.0, 0.0, 0.0, 1.0};
 			GLfloat   mat_flash[]       = {0.0, 0.0, 0.0, 1.0};
 			GLfloat   mat_flash_shiny[] = {50.0};
 			
-			if(obj_model[i]!=NULL)	{
-				mat_ambient[0]	=1.0;
-				mat_flash[0]	=1.0;
-				mat_ambient[1]	=1.0;
-				mat_flash[1]	=1.0;
-				mat_ambient[2]	=1.0;
-				mat_flash[2]	=1.0;
-			}else	{
-				switch(obj_color[i])		{
+			switch(obj_color[i])		{
 				case EMBALAGEM:
 					mat_ambient[0]	=1.0;
 					mat_flash[0]	=1.0;
@@ -397,7 +418,6 @@ static void draw_objs(void){
 					mat_flash[1]	=0.745;
 					mat_ambient[2]	=0.745;
 					mat_flash[2]	=0.745;
-				}
 			}
 			glMaterialfv(GL_FRONT, GL_SPECULAR, mat_flash);
 			glMaterialfv(GL_FRONT, GL_SHININESS, mat_flash_shiny);	
@@ -412,8 +432,28 @@ static void draw_objs(void){
 			
 			if(obj_model[i]==NULL)
 				glutSolidTeapot(0.5);
-			else
-				glmDraw(obj_model[i],GLM_SMOOTH|GLM_TEXTURE);
+			else	{
+				//switch(obj_color[i])		{
+				//case EMBALAGEM:
+				//	cout << "EMBALAGEM" << endl;
+				//	break;
+				//case PAPEL_CARTAO:
+				//	cout << "PAPEL_CARTAO" << endl;
+				//	break;
+				//case VIDRO:
+				//	cout << "VIDRO" << endl;
+				//	break;
+				//case PILHAO:
+				//	cout << "PILHAO" << endl;
+				//	break;
+				//case INDIFERENCIADO:
+				//	cout << "INDIFERENCIADO" << endl;
+				//}
+				if(obj_color[i]!=VIDRO)	{
+					glmDraw(obj_model[i],GLM_SMOOTH|GLM_MATERIAL|GLM_TEXTURE);
+				} else
+					glutSolidTeapot(0.5);
+			}
 
 			glPopMatrix();
 		}

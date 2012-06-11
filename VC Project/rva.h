@@ -24,6 +24,9 @@
 #define MAX_PATTS 2
 #define FLOW_TIME 2.0
 #define MAX_OBJS  4
+
+#define PI			3.14159265
+
 // Max distance to consider a marker-teapot intersection
 #define THRESHOLD 70.0
 
