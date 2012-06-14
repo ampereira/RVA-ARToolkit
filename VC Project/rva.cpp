@@ -38,8 +38,8 @@ static void initPatts(void){
 				patt_name[3] = "patt.sample2";
 				patt_color[3]= INDIFERENCIADO;
 				break;
-
 		}
+		score[i]=0;
 		if( (patt_id[i]=arLoadPatt(patt_name[i])) < 0 ) {
 			cout << "Error loading " << patt_name[i] << " pattern!" << endl;
 			exit(0);
@@ -100,7 +100,7 @@ static void handle_objs(double trans[3][4], unsigned patt_id){
 			obj_draw[j] = false;
 
 			if(obj_color[j]==patt_color[patt_id])	{
-				score+=UP;
+				score[patt_id]+=UP;
 				switch(rand()%3)	{
 				case 0:
 				case 1:
@@ -109,11 +109,24 @@ static void handle_objs(double trans[3][4], unsigned patt_id){
 				case 2:
 					cout << "FIXE, ";
 				}
-				cout << " o teu score agora e " << score << endl;
+				switch (patt_id)	{
+				case EMBALAGEM: cout << "Embalagem"; break;
+				case PAPEL_CARTAO: cout << "Papel e Cartao"; break;
+				case VIDRO: cout << "Vidro"; break;
+				case INDIFERENCIADO: cout << "Lixo indiferenciado"; break;
+				}
+				cout << " o teu score agora e " << score[patt_id] << endl;
 			}
 			else	{
-				score-=DOWN;
-				cout << "\aContentor errado, o teu score agora e " << score << endl;
+				score[patt_id]-=DOWN;
+				cout << "\aQue pena ";
+				switch (patt_id)	{
+				case EMBALAGEM: cout << "Embalagem"; break;
+				case PAPEL_CARTAO: cout << "Papel e Cartao"; break;
+				case VIDRO: cout << "Vidro"; break;
+				case INDIFERENCIADO: cout << "Lixo indiferenciado"; break;
+				}
+				cout << "... errado, o teu score agora e " << score[patt_id] << endl;
 			}
 
 			// If all teapots were intersected game over!
@@ -122,14 +135,22 @@ static void handle_objs(double trans[3][4], unsigned patt_id){
 				not_end = not_end || obj_draw[i];
 			}
 			if(!not_end)	{
+				for(int i=0;i<MAX_PATTS;++i)	{
+					if(score>0)
+						cout << "You WON!" << endl;
+					else
+						cout << "You LOSE!" << endl;
+					switch (patt_id)	{
+					case EMBALAGEM: cout << "Embalagem"; break;
+					case PAPEL_CARTAO: cout << "Papel e Cartao"; break;
+					case VIDRO: cout << "Vidro"; break;
+					case INDIFERENCIADO: cout << "Lixo indiferenciado"; break;
+					}
+					cout << ", your final score is " << score[i] << "." << endl;
+				}
 				
-				if(score>0)
-					cout << "You WON!" << endl;
-				else
-					cout << "You LOSE!" << endl;
-				cout << "Your final score is " << score << "." << endl;
-				getchar();
 				cleanup();
+				getchar();
 				exit(0);
 			}
 		}
@@ -204,7 +225,7 @@ static void initObjs(void){
 
 	for(unsigned i = 0; i < MAX_OBJS; ++i)	{
 		obj_draw[i]		= true;
-		obj_color[i]	= rand()%4;
+		obj_color[i]	= i%4;
 		char buffer[1024];
 		char file[128];
 		switch(obj_color[i])	{
@@ -387,8 +408,8 @@ static void draw_objs(void){
 					obj_pos[i][1]=0;
 			}
 
-			if(obj_color[i]==EMBALAGEM) // for debug
-				cout << "obj[i].XX = " << obj_pos[i][0] << "\t |\tobj[i].YY = " << obj_pos[i][1] << endl;
+			//if(obj_color[i]==EMBALAGEM) // for debug
+				//cout << "obj[i].XX = " << obj_pos[i][0] << "\t |\tobj[i].YY = " << obj_pos[i][1] << endl;
 
 			GLfloat   mat_ambient[]     = {0.0, 0.0, 0.0, 1.0};
 			GLfloat   mat_flash[]       = {0.0, 0.0, 0.0, 1.0};

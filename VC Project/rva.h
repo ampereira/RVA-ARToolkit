@@ -94,7 +94,7 @@ double ang[MAX_OBJS] = {
 // To control score
 #define UP				500
 #define DOWN			100
-int score = 0;
+int score[MAX_PATTS];
 
 // Class of each trail effect position
 class EffectCoords{
